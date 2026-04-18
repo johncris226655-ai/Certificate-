@@ -2,80 +2,206 @@
 <html lang="en">
 <head>
     <meta charset="UTF-8">
-    <title>Subject Database Checker</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Subject Database & Death Registry</title>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
     <style>
-        body { font-family: sans-serif; background: #1a1a1a; color: #fff; padding: 20px; }
-        .card { background: white; color: #000; padding: 20px; max-width: 500px; margin: auto; border-radius: 10px; }
-        .death-cert { 
-            display: none; background: #fff; color: #000; border: 10px double #000; 
-            padding: 40px; margin-top: 20px; width: 210mm; height: 297mm; /* A4 Ratio */
-            position: relative; box-sizing: border-box;
+        :root { --hospital-blue: #2c3e50; --border-ink: #1a1a1a; }
+        body { font-family: 'Times New Roman', serif; background: #121212; color: #fff; padding: 20px; }
+        
+        /* UI Elements */
+        .card { background: #fff; color: #000; padding: 25px; max-width: 500px; margin: auto; border-radius: 4px; box-shadow: 0 10px 30px rgba(0,0,0,0.5); }
+        .input-group { display: flex; gap: 10px; margin-top: 15px; }
+        input { flex: 1; padding: 12px; border: 1px solid #ccc; outline: none; }
+        button { cursor: pointer; border: none; font-weight: bold; transition: 0.3s; }
+        .btn-search { background: var(--hospital-blue); color: white; padding: 0 20px; }
+        .btn-dc { background: #b30000; color: white; width: 100%; padding: 15px; margin-top: 20px; font-size: 1rem; }
+
+        /* Realistic Death Certificate Design */
+        #death-certificate { 
+            display: none; 
+            background: #fff; 
+            color: #000; 
+            width: 210mm; 
+            min-height: 297mm; 
+            margin: 40px auto; 
+            padding: 60px; 
+            box-sizing: border-box;
+            border: 2px solid #000;
+            position: relative;
+            box-shadow: 0 0 20px rgba(0,0,0,0.8);
         }
-        .stamp { color: #b30000; border: 4px solid #b30000; display: inline-block; padding: 5px; transform: rotate(-15deg); font-weight: bold; position: absolute; top: 50px; right: 50px; }
+        
+        .dc-inner-border { border: 1px solid #000; padding: 40px; height: 100%; position: relative; }
+        
+        .header { text-align: center; margin-bottom: 40px; }
+        .header h1 { font-size: 28pt; margin: 0; letter-spacing: 2px; }
+        .header p { margin: 5px; text-transform: uppercase; font-size: 10pt; font-weight: bold; }
+
+        .form-row { display: flex; border-bottom: 1px solid #000; margin-bottom: 15px; padding-bottom: 5px; }
+        .label { font-size: 9pt; font-weight: bold; text-transform: uppercase; width: 150px; color: #555; }
+        .value { font-size: 14pt; flex: 1; font-family: 'Courier New', monospace; }
+
+        .stamp-deceased { 
+            position: absolute; top: 10%; right: 10%; 
+            border: 5px double #b30000; color: #b30000; 
+            padding: 10px 20px; font-size: 24pt; font-weight: bold; 
+            transform: rotate(15deg); opacity: 0.8; 
+            user-select: none; pointer-events: none;
+        }
+
+        .signatures { margin-top: 80px; display: flex; justify-content: space-between; text-align: center; }
+        .sig-box { width: 250px; position: relative; }
+        .sig-line { border-top: 1px solid #000; margin-top: 50px; }
+        .sig-label { font-size: 9pt; margin-top: 5px; }
+        
+        .doctor-sig { 
+            font-family: 'Brush Script MT', cursive; font-size: 22pt; 
+            color: #1a1a7a; position: absolute; top: -30px; left: 50%; transform: translateX(-50%);
+        }
+        #dc-sig-img { height: 60px; position: absolute; top: -45px; left: 50%; transform: translateX(-50%); }
+
+        .btn-save { background: #27ae60; color: white; padding: 15px 30px; display: none; margin: 20px auto; display: block; }
+
+        @media print {
+            body { background: white; padding: 0; }
+            #search-box, .btn-dc, .btn-save, #result { display: none !important; }
+            #death-certificate { display: block !important; margin: 0; border: none; box-shadow: none; }
+        }
     </style>
 </head>
 <body>
 
 <div class="card" id="search-box">
-    <h2 style="color:red">DATABASE ACCESS</h2>
-    <input type="text" id="code-in" placeholder="Enter 5-Digit ID" style="width:70%; padding:10px;">
-    <button onclick="checkInfo()" style="padding:10px;">SEARCH</button>
+    <h2 style="color:#b30000; margin-top:0;">RECORDS BUREAU</h2>
+    <p style="font-size: 0.8rem; color: #666;">Enter player ID to retrieve biometric files.</p>
+    <div class="input-group">
+        <input type="text" id="code-in" placeholder="5-DIGIT CODE">
+        <button class="btn-search" onclick="checkInfo()">ACCESS</button>
+    </div>
 </div>
 
-<div id="result" class="card" style="display:none; margin-top:20px;">
+<div id="result" class="card" style="display:none; margin-top:20px; border-left: 5px solid #b30000;">
     <div id="info-display"></div>
-    <button onclick="generateDC()" style="background:red; color:white; width:100%; padding:15px; margin-top:10px;">CREATE DEATH CERTIFICATE</button>
+    <button class="btn-dc" onclick="generateDC()">EXECUTE DEATH CERTIFICATE</button>
 </div>
 
-<div id="death-certificate" class="death-cert">
-    <h1 style="text-align:center;">CERTIFICATE OF DEATH</h1>
-    <div class="stamp">OFFICIALLY DECEASED</div>
-    <hr>
-    <div id="dc-content" style="font-size: 1.2rem; line-height: 2;"></div>
-    <div style="margin-top: 50px; display: flex; justify-content: space-between;">
-        <div>
-            <p>____________________</p>
-            <p>Subject Signature</p>
-            <img id="dc-sig" src="" style="height: 50px; margin-top: -60px; display: block;">
+<div id="death-certificate">
+    <div class="dc-inner-border">
+        <div class="stamp-deceased">TERMINATED</div>
+        
+        <div class="header">
+            <p>Republic of the Philippines</p>
+            <p>Department of Final Records</p>
+            <h1>CERTIFICATE OF DEATH</h1>
+            <p style="margin-top: 10px;">Registry No. <span id="reg-num" style="color:red"></span></p>
         </div>
-        <div>
-            <p>____________________</p>
-            <p>Dr. J. Refuerzo, MD</p>
-            <p style="font-style: italic; color: blue; margin-top: -60px;">Refuerzo</p>
+
+        <div class="form-row">
+            <div class="label">Name of Deceased:</div>
+            <div class="value" id="dc-name"></div>
+        </div>
+        <div class="form-row">
+            <div class="label">Date of Birth:</div>
+            <div class="value" id="dc-dob"></div>
+        </div>
+        <div class="form-row">
+            <div class="label">Blood Type:</div>
+            <div class="value" id="dc-blood"></div>
+        </div>
+        <div class="form-row">
+            <div class="label">Time of Death:</div>
+            <div class="value" id="dc-time"></div>
+        </div>
+        <div class="form-row" style="height: 80px;">
+            <div class="label">Cause of Death:</div>
+            <div class="value" id="dc-cause" style="color: #b30000; font-weight: bold;"></div>
+        </div>
+        <div class="form-row">
+            <div class="label">Place of Processing:</div>
+            <div class="value">Borderland Medical Center - District 4</div>
+        </div>
+
+        <div class="signatures">
+            <div class="sig-box">
+                <img id="dc-sig-img" src="">
+                <div class="sig-line"></div>
+                <div class="sig-label">Signature of Deceased</div>
+            </div>
+            <div class="sig-box">
+                <div class="doctor-sig">The Mask</div>
+                <div class="sig-line"></div>
+                <div class="sig-label">Attending Physician: THE MASK, M.D.</div>
+            </div>
+        </div>
+
+        <div style="margin-top: 50px; font-size: 8pt; text-align: center; color: #888;">
+            This document is a digital record. Any alteration renders this file void.<br>
+            © 2026 Borderland Administration
         </div>
     </div>
 </div>
+
+<button class="btn-save" id="save-btn" style="display:none;" onclick="saveAsImage()">SAVE AS JPEG (IMG)</button>
 
 <script>
     function checkInfo() {
         const code = document.getElementById('code-in').value;
         const data = JSON.parse(localStorage.getItem(code));
-        if(!data) return alert("ID Not Found");
+        if(!data) return alert("ACCESS DENIED: ID not found in database.");
 
         document.getElementById('result').style.display = 'block';
         document.getElementById('info-display').innerHTML = `
-            <img src="${data.photo}" style="width:100%">
-            <h3>NAME: ${data.name}</h3>
-            <p>DOB: ${data.dob}</p>
-            <p>BLOOD TYPE: ${data.blood}</p>
+            <div style="text-align:center; margin-bottom: 15px;">
+                <img src="${data.photo}" style="width:150px; height:150px; border: 2px solid #000; object-fit: cover;">
+            </div>
+            <p><strong>SUBJECT:</strong> ${data.name}</p>
+            <p><strong>STATUS:</strong> ACTIVE RECORD</p>
         `;
         window.activeData = data;
+        window.activeCode = code;
     }
 
     function generateDC() {
-        const causes = ["Acute Cardiac Arrest", "Game Over: Elimination", "Multiple Organ Failure", "System Malfunction", "Blood Loss"];
+        const causes = [
+            "Acute Myocardial Infarction due to Game Stress",
+            "Exsanguination via External Lacerations",
+            "Cerebral Hemorrhage (System Feedback Error)",
+            "Cardiorespiratory Arrest (Unknown Origin)",
+            "Traumatic Shock due to Elimination",
+            "Asphyxiation by Chemical Exposure",
+            "Multiple Blunt Force Trauma (District Games)",
+            "Sudden Cardiac Death (Borderland Rule #4)",
+            "Internal Hemorrhage (Organ Liquefaction)",
+            "Neurogenic Shock (Execution Protocol)"
+        ];
+
         const randomCause = causes[Math.floor(Math.random() * causes.length)];
         const data = window.activeData;
+        const now = new Date();
 
         document.getElementById('death-certificate').style.display = 'block';
-        document.getElementById('dc-content').innerHTML = `
-            <p>This certifies that <b>${data.name}</b>, with Blood Type <b>${data.blood}</b>, 
-            born on <b>${data.dob}</b>, has been processed.</p>
-            <p><b>CAUSE OF DEATH:</b> ${randomCause}</p>
-            <p><b>DATE OF RECORD:</b> ${new Date().toLocaleDateString()}</p>
-        `;
-        document.getElementById('dc-sig').src = data.sig;
-        window.scrollTo(0, document.body.scrollHeight);
+        document.getElementById('save-btn').style.display = 'block';
+        
+        document.getElementById('reg-num').innerText = "2026-" + window.activeCode;
+        document.getElementById('dc-name').innerText = data.name.toUpperCase();
+        document.getElementById('dc-dob').innerText = data.dob;
+        document.getElementById('dc-blood').innerText = data.blood;
+        document.getElementById('dc-time').innerText = now.getHours() + ":" + (now.getMinutes()<10?'0':'') + now.getMinutes() + " HRS";
+        document.getElementById('dc-cause').innerText = randomCause;
+        document.getElementById('dc-sig-img').src = data.sig;
+
+        window.scrollTo({ top: document.getElementById('death-certificate').offsetTop, behavior: 'smooth' });
+    }
+
+    function saveAsImage() {
+        const cert = document.getElementById('death-certificate');
+        html2canvas(cert, { scale: 2 }).then(canvas => {
+            const link = document.createElement('a');
+            link.download = 'DEATH_CERTIFICATE_' + window.activeData.name + '.jpg';
+            link.href = canvas.toDataURL('image/jpeg', 0.9);
+            link.click();
+        });
     }
 </script>
 </body>
